@@ -1,21 +1,61 @@
 const { Pool } = require('pg');
 
-// 🔥 reusable DB connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    rejectUnauthorized: false
+// ✅ reusable DB connection
+let pool;
+
+const getPool = () => {
+  if (!pool) {
+    pool = new Pool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
   }
-});
+  return pool;
+};
 
 module.exports.handler = async (event) => {
   try {
-    const { id } = event.pathParameters;
-    const data = JSON.parse(event.body);
+    const db = getPool();
+
+    // ✅ FIX param (support both id / room_id)
+    const { id, room_id } = event.pathParameters || {};
+    const finalId = id || room_id;
+
+    if (!finalId) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'room_id is required'
+        }),
+      };
+    }
+
+    // ✅ safe JSON parse
+    let data = {};
+    try {
+      data = event.body ? JSON.parse(event.body) : {};
+    } catch (e) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'Invalid JSON body'
+        }),
+      };
+    }
 
     const {
       room_number,
@@ -27,9 +67,9 @@ module.exports.handler = async (event) => {
     } = data;
 
     // 🔹 check if room exists
-    const check = await pool.query(
+    const check = await db.query(
       `SELECT * FROM rooms WHERE room_id = $1`,
-      [id]
+      [finalId]
     );
 
     if (check.rows.length === 0) {
@@ -47,9 +87,9 @@ module.exports.handler = async (event) => {
 
     // 🔹 check duplicate room_number
     if (room_number) {
-      const duplicateCheck = await pool.query(
+      const duplicateCheck = await db.query(
         `SELECT 1 FROM rooms WHERE room_number = $1 AND room_id != $2`,
-        [room_number, id]
+        [room_number, finalId]
       );
 
       if (duplicateCheck.rows.length > 0) {
@@ -67,7 +107,7 @@ module.exports.handler = async (event) => {
     }
 
     // 🔹 update
-    const result = await pool.query(
+    const result = await db.query(
       `
       UPDATE rooms
       SET
@@ -87,7 +127,7 @@ module.exports.handler = async (event) => {
         price_per_night ?? null,
         status ?? null,
         room_description ?? null,
-        id
+        finalId
       ]
     );
 

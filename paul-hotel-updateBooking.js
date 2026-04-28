@@ -1,21 +1,61 @@
 const { Pool } = require('pg');
 
-// 🔥 reusable DB connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    rejectUnauthorized: false
+// ✅ reusable connection
+let pool;
+
+const getPool = () => {
+  if (!pool) {
+    pool = new Pool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
   }
-});
+  return pool;
+};
 
 module.exports.handler = async (event) => {
   try {
-    const { booking_id } = event.pathParameters;
-    const data = JSON.parse(event.body);
+    const db = getPool();
+
+    // ✅ FIX: support both id and booking_id
+    const { booking_id, id } = event.pathParameters || {};
+    const finalId = booking_id || id;
+
+    if (!finalId) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'booking_id is required'
+        }),
+      };
+    }
+
+    // ✅ safe JSON parse
+    let data = {};
+    try {
+      data = event.body ? JSON.parse(event.body) : {};
+    } catch (err) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'Invalid JSON body'
+        }),
+      };
+    }
 
     const {
       number_of_guests,
@@ -24,7 +64,7 @@ module.exports.handler = async (event) => {
       status
     } = data;
 
-    const result = await pool.query(
+    const result = await db.query(
       `UPDATE bookings
        SET number_of_guests = $1,
            check_in_date = $2,
@@ -32,7 +72,13 @@ module.exports.handler = async (event) => {
            status = $4
        WHERE booking_id = $5
        RETURNING *`,
-      [number_of_guests, check_in_date, check_out_date, status, booking_id]
+      [
+        number_of_guests,
+        check_in_date,
+        check_out_date,
+        status,
+        finalId
+      ]
     );
 
     if (result.rows.length === 0) {

@@ -1,21 +1,61 @@
 const { Pool } = require('pg');
 
-// 🔥 reusable DB connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    rejectUnauthorized: false
+// ✅ reusable DB connection
+let pool;
+
+const getPool = () => {
+  if (!pool) {
+    pool = new Pool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
   }
-});
+  return pool;
+};
 
 module.exports.handler = async (event) => {
   try {
-    const { id } = event.pathParameters;
-    const data = JSON.parse(event.body);
+    const db = getPool();
+
+    // ✅ FIX param (support both)
+    const { id, payment_id } = event.pathParameters || {};
+    const finalId = id || payment_id;
+
+    if (!finalId) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'payment_id is required'
+        }),
+      };
+    }
+
+    // ✅ safe JSON parse
+    let data = {};
+    try {
+      data = event.body ? JSON.parse(event.body) : {};
+    } catch (e) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'Invalid JSON body'
+        }),
+      };
+    }
 
     let {
       payment_type,
@@ -26,9 +66,9 @@ module.exports.handler = async (event) => {
     } = data;
 
     // 🔹 check if payment exists
-    const check = await pool.query(
+    const check = await db.query(
       `SELECT * FROM payments WHERE payment_id = $1`,
-      [id]
+      [finalId]
     );
 
     if (check.rows.length === 0) {
@@ -59,11 +99,11 @@ module.exports.handler = async (event) => {
     const total_due = 5000;
     const final_due = total_due - discount;
 
-    // 🔥 ENUM SAFE MAP
+    // 🔥 ENUM SAFE MAP (FIXED)
     const STATUS_MAP = {
       pending: 'Pending',
       paid: 'Paid',
-      partial: 'Partial Paid',
+      partial: 'Partial_paid',
       refunded: 'Refunded',
       settlement: 'Settlement'
     };
@@ -101,7 +141,7 @@ module.exports.handler = async (event) => {
     }
 
     // 🔹 update
-    const result = await pool.query(
+    const result = await db.query(
       `
       UPDATE payments
       SET
@@ -119,7 +159,7 @@ module.exports.handler = async (event) => {
         payment_amount ?? null,
         total_discount ?? null,
         finalStatus,
-        id
+        finalId
       ]
     );
 

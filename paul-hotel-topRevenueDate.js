@@ -1,24 +1,33 @@
 const { Pool } = require('pg');
 
-// 🔥 reusable DB connection (Lambda-friendly)
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+let pool;
 
-module.exports.handler = async (event) => {
+const getPool = () => {
+  if (!pool) {
+    pool = new Pool({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+  }
+  return pool;
+};
+
+module.exports.handler = async () => {
   try {
-    const result = await pool.query(`
-      SELECT payment_date::date AS date,
-             SUM(amount) AS total_revenue
+    const db = getPool();
+
+    const result = await db.query(`
+      SELECT 
+        payment_date::date AS date,
+        SUM(payment_amount) AS total_revenue
       FROM payments
-      GROUP BY date
+      GROUP BY payment_date::date
       ORDER BY total_revenue DESC
       LIMIT 1
     `);
