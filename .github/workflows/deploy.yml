@@ -25,6 +25,8 @@ jobs:
 
       - name: Deploy each function
         run: |
+          set -x
+
           for file in *.js; do
             base=$(basename "$file" .js)
             fname="$base"
@@ -33,20 +35,22 @@ jobs:
 
             zip -r $fname.zip $file
 
-            aws lambda get-function --function-name $fname > /dev/null 2>&1
+            echo "Trying to create function..."
 
-            if [ $? -eq 0 ]; then
-              echo "Updating existing function: $fname"
+            aws lambda create-function \
+              --function-name $fname \
+              --runtime nodejs18.x \
+              --role arn:aws:iam::257394495871:role/lambda-paul-role \
+              --handler $base.handler \
+              --zip-file fileb://$fname.zip \
+              --region ap-southeast-2 || \
+
+            (
+              echo "Function exists, updating instead..."
               aws lambda update-function-code \
                 --function-name $fname \
-                --zip-file fileb://$fname.zip
-            else
-              echo "Creating new function: $fname"
-              aws lambda create-function \
-                --function-name $fname \
-                --runtime nodejs18.x \
-                --role arn:aws:iam::257394495871:role/lambda-paul-role \
-                --handler $base.handler \
-                --zip-file fileb://$fname.zip
-            fi
+                --zip-file fileb://$fname.zip \
+                --region ap-southeast-2
+            )
+
           done
