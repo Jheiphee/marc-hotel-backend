@@ -33,7 +33,16 @@ jobs:
 
             echo "Deploying $fname"
 
-            zip -r $fname.zip $file
+            # 🔥 Create temp folder
+            mkdir build
+            cp $file build/
+            cp package.json build/
+            cp -r node_modules build/
+
+            # 🔥 Zip everything
+            cd build
+            zip -r ../$fname.zip .
+            cd ..
 
             echo "Trying to create function..."
 
@@ -52,5 +61,8 @@ jobs:
                 --zip-file fileb://$fname.zip \
                 --region ap-southeast-2
             )
+
+            # 🔥 Cleanup
+            rm -rf build $fname.zip
 
           done
