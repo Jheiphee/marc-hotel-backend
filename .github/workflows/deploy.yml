@@ -21,18 +21,32 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-1
+          aws-region: ap-southeast-2
 
       - name: Deploy each function
         run: |
           for file in *.js; do
-            fname=$(basename "$file" .js)
+            base=$(basename "$file" .js)
+            fname="$base"
 
             echo "Deploying $fname"
 
-            zip -r $fname.zip $file node_modules package.json
+            zip -r $fname.zip $file
 
-            aws lambda update-function-code \
-              --function-name $fname \
-              --zip-file fileb://$fname.zip
+            aws lambda get-function --function-name $fname > /dev/null 2>&1
+
+            if [ $? -eq 0 ]; then
+              echo "Updating existing function: $fname"
+              aws lambda update-function-code \
+                --function-name $fname \
+                --zip-file fileb://$fname.zip
+            else
+              echo "Creating new function: $fname"
+              aws lambda create-function \
+                --function-name $fname \
+                --runtime nodejs18.x \
+                --role arn:aws:iam::257394495871:role/lambda-paul-role \
+                --handler $base.handler \
+                --zip-file fileb://$fname.zip
+            fi
           done
