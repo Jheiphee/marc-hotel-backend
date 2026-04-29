@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// 🔥 reusable DB connection
 const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -15,13 +14,21 @@ const pool = new Pool({
 module.exports.handler = async (event) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        DATE(check_in_date) AS date,
-        COUNT(*) AS total_bookings
-      FROM bookings
-      GROUP BY DATE(check_in_date)
-      ORDER BY total_bookings DESC
-      LIMIT 1
+      WITH booking_counts AS (
+        SELECT 
+          DATE(check_in_date) AS date,
+          COUNT(*) AS total_bookings
+        FROM bookings
+        GROUP BY DATE(check_in_date)
+      ),
+      max_count AS (
+        SELECT MAX(total_bookings) AS max_total
+        FROM booking_counts
+      )
+      SELECT *
+      FROM booking_counts
+      WHERE total_bookings = (SELECT max_total FROM max_count)
+      ORDER BY date;
     `);
 
     return {
@@ -31,7 +38,7 @@ module.exports.handler = async (event) => {
         "Access-Control-Allow-Origin": "*"
       },
       body: JSON.stringify({
-        data: result.rows[0] || null
+        data: result.rows
       })
     };
 
