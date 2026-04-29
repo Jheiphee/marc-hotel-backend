@@ -11,22 +11,31 @@ const pool = new Pool({
   }
 });
 
-module.exports.handler = async (event) => {
+module.exports.handler = async () => {
   try {
     const result = await pool.query(`
-      WITH booking_counts AS (
+      WITH expanded_dates AS (
         SELECT 
-          DATE(check_in_date) AS date,
-          COUNT(*) AS total_bookings
+          generate_series(
+            check_in_date,
+            COALESCE(check_out_date - interval '1 day', check_in_date),
+            interval '1 day'
+          )::date AS date
         FROM bookings
-        GROUP BY DATE(check_in_date)
+      ),
+      daily_counts AS (
+        SELECT 
+          date,
+          COUNT(*) AS total_bookings
+        FROM expanded_dates
+        GROUP BY date
       ),
       max_count AS (
         SELECT MAX(total_bookings) AS max_total
-        FROM booking_counts
+        FROM daily_counts
       )
       SELECT *
-      FROM booking_counts
+      FROM daily_counts
       WHERE total_bookings = (SELECT max_total FROM max_count)
       ORDER BY date;
     `);
