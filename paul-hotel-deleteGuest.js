@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// ✅ reusable DB connection (better for Lambda)
 let pool;
 
 const getPool = () => {
@@ -23,10 +22,10 @@ module.exports.handler = async (event) => {
   try {
     const db = getPool();
 
-    // ✅ FIX: safe + correct param name
-    const { guest_id } = event.pathParameters || {};
+    const { guest_id, id } = event.pathParameters || {};
+    const finalId = guest_id || id;
 
-    if (!guest_id) {
+    if (!finalId) {
       return {
         statusCode: 400,
         headers: {
@@ -39,10 +38,9 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // 🔹 check if guest exists
     const guestCheck = await db.query(
       `SELECT 1 FROM guests WHERE guest_id = $1`,
-      [guest_id]
+      [finalId]
     );
 
     if (guestCheck.rows.length === 0) {
@@ -58,10 +56,9 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // 🔹 delete guest
     await db.query(
       `DELETE FROM guests WHERE guest_id = $1`,
-      [guest_id]
+      [finalId]
     );
 
     return {

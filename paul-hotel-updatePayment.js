@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// ✅ reusable DB connection
 let pool;
 
 const getPool = () => {
@@ -23,7 +22,6 @@ module.exports.handler = async (event) => {
   try {
     const db = getPool();
 
-    // ✅ FIX param (support both)
     const { id, payment_id } = event.pathParameters || {};
     const finalId = id || payment_id;
 
@@ -40,11 +38,10 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // ✅ safe JSON parse
     let data = {};
     try {
       data = event.body ? JSON.parse(event.body) : {};
-    } catch (e) {
+    } catch {
       return {
         statusCode: 400,
         headers: {
@@ -65,7 +62,6 @@ module.exports.handler = async (event) => {
       status
     } = data;
 
-    // 🔹 check if payment exists
     const check = await db.query(
       `SELECT * FROM payments WHERE payment_id = $1`,
       [finalId]
@@ -86,7 +82,6 @@ module.exports.handler = async (event) => {
 
     const current = check.rows[0];
 
-    // 🔹 normalize numbers
     const amount = payment_amount !== undefined
       ? Number(payment_amount)
       : Number(current.payment_amount);
@@ -95,22 +90,19 @@ module.exports.handler = async (event) => {
       ? Number(total_discount)
       : Number(current.total_discount);
 
-    // 🔹 TEMP total_due
     const total_due = 5000;
     const final_due = total_due - discount;
 
-    // 🔥 ENUM SAFE MAP (FIXED)
     const STATUS_MAP = {
       pending: 'Pending',
       paid: 'Paid',
-      partial: 'Partial_paid',
-      refunded: 'Refunded',
-      settlement: 'Settlement'
+      partial: 'Paid',
+      refunded: 'Paid',
+      settlement: 'Paid'
     };
 
     let finalStatus = current.status;
 
-    // 🔥 PRIORITY: MANUAL OVERRIDE
     if (status) {
       const normalized = status.toLowerCase();
 
@@ -130,17 +122,15 @@ module.exports.handler = async (event) => {
       }
 
     } else {
-      // 🔹 AUTO COMPUTE
       if (amount === 0) {
-        finalStatus = STATUS_MAP.pending;
+        finalStatus = 'Pending';
       } else if (amount < final_due) {
-        finalStatus = STATUS_MAP.partial;
+        finalStatus = 'Paid';
       } else {
-        finalStatus = STATUS_MAP.paid;
+        finalStatus = 'Paid';
       }
     }
 
-    // 🔹 update
     const result = await db.query(
       `
       UPDATE payments

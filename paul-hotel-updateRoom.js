@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// ✅ reusable DB connection
 let pool;
 
 const getPool = () => {
@@ -23,7 +22,6 @@ module.exports.handler = async (event) => {
   try {
     const db = getPool();
 
-    // ✅ FIX param (support both id / room_id)
     const { id, room_id } = event.pathParameters || {};
     const finalId = id || room_id;
 
@@ -40,11 +38,10 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // ✅ safe JSON parse
     let data = {};
     try {
       data = event.body ? JSON.parse(event.body) : {};
-    } catch (e) {
+    } catch {
       return {
         statusCode: 400,
         headers: {
@@ -66,9 +63,8 @@ module.exports.handler = async (event) => {
       room_description
     } = data;
 
-    // 🔹 check if room exists
     const check = await db.query(
-      `SELECT * FROM rooms WHERE room_id = $1`,
+      `SELECT 1 FROM rooms WHERE room_id = $1`,
       [finalId]
     );
 
@@ -85,8 +81,7 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // 🔹 check duplicate room_number
-    if (room_number) {
+    if (room_number !== undefined) {
       const duplicateCheck = await db.query(
         `SELECT 1 FROM rooms WHERE room_number = $1 AND room_id != $2`,
         [room_number, finalId]
@@ -106,30 +101,63 @@ module.exports.handler = async (event) => {
       }
     }
 
-    // 🔹 update
-    const result = await db.query(
-      `
+    let fields = [];
+    let values = [];
+    let index = 1;
+
+    if (room_number !== undefined) {
+      fields.push(`room_number = $${index++}`);
+      values.push(room_number);
+    }
+
+    if (room_size !== undefined) {
+      fields.push(`room_size = $${index++}`);
+      values.push(room_size);
+    }
+
+    if (room_capacity !== undefined) {
+      fields.push(`room_capacity = $${index++}`);
+      values.push(room_capacity);
+    }
+
+    if (price_per_night !== undefined) {
+      fields.push(`price_per_night = $${index++}`);
+      values.push(price_per_night);
+    }
+
+    if (status !== undefined) {
+      fields.push(`status = $${index++}`);
+      values.push(status);
+    }
+
+    if (room_description !== undefined) {
+      fields.push(`room_description = $${index++}`);
+      values.push(room_description);
+    }
+
+    if (fields.length === 0) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'No fields provided for update'
+        }),
+      };
+    }
+
+    values.push(finalId);
+
+    const query = `
       UPDATE rooms
-      SET
-        room_number = COALESCE($1, room_number),
-        room_size = COALESCE($2, room_size),
-        room_capacity = COALESCE($3, room_capacity),
-        price_per_night = COALESCE($4, price_per_night),
-        status = COALESCE($5, status),
-        room_description = COALESCE($6, room_description)
-      WHERE room_id = $7
+      SET ${fields.join(', ')}
+      WHERE room_id = $${index}
       RETURNING *
-      `,
-      [
-        room_number ?? null,
-        room_size ?? null,
-        room_capacity ?? null,
-        price_per_night ?? null,
-        status ?? null,
-        room_description ?? null,
-        finalId
-      ]
-    );
+    `;
+
+    const result = await db.query(query, values);
 
     return {
       statusCode: 200,

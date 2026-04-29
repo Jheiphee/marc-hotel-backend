@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// ✅ reusable connection
 let pool;
 
 const getPool = () => {
@@ -23,7 +22,6 @@ module.exports.handler = async (event) => {
   try {
     const db = getPool();
 
-    // ✅ FIX: support both id and booking_id
     const { booking_id, id } = event.pathParameters || {};
     const finalId = booking_id || id;
 
@@ -40,11 +38,10 @@ module.exports.handler = async (event) => {
       };
     }
 
-    // ✅ safe JSON parse
     let data = {};
     try {
       data = event.body ? JSON.parse(event.body) : {};
-    } catch (err) {
+    } catch {
       return {
         statusCode: 400,
         headers: {
@@ -64,24 +61,12 @@ module.exports.handler = async (event) => {
       status
     } = data;
 
-    const result = await db.query(
-      `UPDATE bookings
-       SET number_of_guests = $1,
-           check_in_date = $2,
-           check_out_date = $3,
-           status = $4
-       WHERE booking_id = $5
-       RETURNING *`,
-      [
-        number_of_guests,
-        check_in_date,
-        check_out_date,
-        status,
-        finalId
-      ]
+    const check = await db.query(
+      `SELECT 1 FROM bookings WHERE booking_id = $1`,
+      [finalId]
     );
 
-    if (result.rows.length === 0) {
+    if (check.rows.length === 0) {
       return {
         statusCode: 404,
         headers: {
@@ -93,6 +78,54 @@ module.exports.handler = async (event) => {
         }),
       };
     }
+
+    let fields = [];
+    let values = [];
+    let index = 1;
+
+    if (number_of_guests !== undefined) {
+      fields.push(`number_of_guests = $${index++}`);
+      values.push(number_of_guests);
+    }
+
+    if (check_in_date !== undefined) {
+      fields.push(`check_in_date = $${index++}`);
+      values.push(check_in_date);
+    }
+
+    if (check_out_date !== undefined) {
+      fields.push(`check_out_date = $${index++}`);
+      values.push(check_out_date);
+    }
+
+    if (status !== undefined) {
+      fields.push(`status = $${index++}`);
+      values.push(status);
+    }
+
+    if (fields.length === 0) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: 'No fields provided for update'
+        }),
+      };
+    }
+
+    values.push(finalId);
+
+    const query = `
+      UPDATE bookings
+      SET ${fields.join(', ')}
+      WHERE booking_id = $${index}
+      RETURNING *
+    `;
+
+    const result = await db.query(query, values);
 
     return {
       statusCode: 200,
