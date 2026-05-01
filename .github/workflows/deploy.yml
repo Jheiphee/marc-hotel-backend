@@ -1,46 +1,63 @@
-- name: Deploy each function
-  run: |
-    set -e
-    set -x
+name: Deploy Lambda Functions
 
-    mkdir build   # 🔥 MOVE OUTSIDE LOOP
+on:
+  push:
+    branches:
+      - main
 
-    for file in *.js; do
-      base=$(basename "$file" .js)
-      fname="$base"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-      echo "Deploying $fname"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # 🔥 CLEAN BUILD FOLDER
-      rm -rf build/*
-      cp $file build/
-      cp package.json build/
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
 
-      # 🔥 install dependencies per function (lighter)
-      cd build
-      npm install --omit=dev
+      - name: Deploy each function
+        run: |
+          set -e
+          set -x
 
-      zip -r ../$fname.zip .
-      cd ..
+          mkdir build
 
-      echo "Updating function..."
+          for file in *.js; do
+            base=$(basename "$file" .js)
+            fname="$base"
 
-      aws lambda update-function-code \
-        --function-name $fname \
-        --zip-file fileb://$fname.zip \
-        --region ap-southeast-2 || \
+            echo "Deploying $fname"
 
-      (
-        echo "Function not found, creating..."
-        aws lambda create-function \
-          --function-name $fname \
-          --runtime nodejs18.x \
-          --role arn:aws:iam::257394495871:role/lambda-paul-role \
-          --handler $base.handler \
-          --zip-file fileb://$fname.zip \
-          --region ap-southeast-2
-      )
+            rm -rf build/*
+            cp $file build/
+            cp package.json build/
 
-      rm -f $fname.zip
+            cd build
+            npm install --omit=dev
+            zip -r ../$fname.zip .
+            cd ..
 
-    done
+            aws lambda update-function-code \
+              --function-name $fname \
+              --zip-file fileb://$fname.zip \
+              --region ap-southeast-2 || \
+
+            (
+              echo "Function not found, creating..."
+              aws lambda create-function \
+                --function-name $fname \
+                --runtime nodejs18.x \
+                --role arn:aws:iam::257394495871:role/lambda-paul-role \
+                --handler $base.handler \
+                --zip-file fileb://$fname.zip \
+                --region ap-southeast-2
+            )
+
+            rm -f $fname.zip
+
+          done
