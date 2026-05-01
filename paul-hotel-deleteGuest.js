@@ -18,7 +18,25 @@ const getPool = () => {
   return pool;
 };
 
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (important for DELETE)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const db = getPool();
 
@@ -28,10 +46,7 @@ module.exports.handler = async (event) => {
     if (!finalId) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'guest_id is required'
         }),
@@ -46,10 +61,7 @@ module.exports.handler = async (event) => {
     if (guestCheck.rows.length === 0) {
       return {
         statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Guest not found'
         }),
@@ -63,10 +75,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Guest deleted successfully'
       }),
@@ -77,10 +86,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: err.message
       }),

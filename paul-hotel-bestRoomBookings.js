@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 
-// 🔥 create connection (outside handler = reuse)
 const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -8,7 +7,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
   ssl: {
-    rejectUnauthorized: false // required for AWS RDS
+    rejectUnauthorized: false
   }
 });
 
@@ -29,7 +28,11 @@ module.exports.handler = async (event) => {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+
+        // 🔥 FIXED (may comma na + complete)
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE",
+        "Access-Control-Allow-Headers": "Content-Type"
       },
       body: JSON.stringify({
         data: result.rows[0] || null
@@ -43,7 +46,11 @@ module.exports.handler = async (event) => {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+
+        // 🔥 SAME HEADERS
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE",
+        "Access-Control-Allow-Headers": "Content-Type"
       },
       body: JSON.stringify({
         message: error.message

@@ -19,7 +19,15 @@ const getPool = () => {
   return pool;
 };
 
-// ✅ normalize status (case-insensitive → ENUM-safe)
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
+// ✅ normalize status
 const normalizeStatus = (status) => {
   if (!status) return null;
 
@@ -34,6 +42,16 @@ const normalizeStatus = (status) => {
 };
 
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (important for POST)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const db = getPool();
 
@@ -44,10 +62,7 @@ module.exports.handler = async (event) => {
     } catch (err) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Invalid JSON body'
         }),
@@ -67,10 +82,7 @@ module.exports.handler = async (event) => {
     if (!booking_id || payment_amount === undefined) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'booking_id and payment_amount are required'
         }),
@@ -90,23 +102,19 @@ module.exports.handler = async (event) => {
     if (bookingCheck.rows.length === 0) {
       return {
         statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Booking does not exist'
         }),
       };
     }
 
-    // 🔹 TEMP total_due (can be dynamic later)
+    // 🔹 TEMP total_due
     const total_due = 5000;
     const final_due = total_due - total_discount;
 
     let finalStatus;
 
-    // 🔥 flexible + override logic
     const normalizedInputStatus = normalizeStatus(status);
 
     if (normalizedInputStatus) {
@@ -156,10 +164,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Payment created successfully',
         data: result.rows[0]
@@ -171,10 +176,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: err.message
       }),

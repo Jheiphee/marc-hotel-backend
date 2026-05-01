@@ -12,7 +12,25 @@ const pool = new Pool({
   }
 });
 
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (important for browser)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const result = await pool.query(`
       SELECT 
@@ -28,10 +46,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         data: result.rows[0] || null
       })
@@ -42,10 +57,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: error.message
       })

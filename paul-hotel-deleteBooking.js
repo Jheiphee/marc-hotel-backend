@@ -19,21 +19,36 @@ const getPool = () => {
   return pool;
 };
 
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (important for DELETE)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const db = getPool();
 
-    // ✅ FIX: support both id and booking_id
+    // ✅ support both id and booking_id
     const { booking_id, id } = event.pathParameters || {};
     const finalId = booking_id || id;
 
     if (!finalId) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'booking_id is required'
         }),
@@ -48,10 +63,7 @@ module.exports.handler = async (event) => {
     if (result.rows.length === 0) {
       return {
         statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Booking not found'
         }),
@@ -60,10 +72,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Booking deleted successfully',
         data: result.rows[0]
@@ -75,10 +84,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: error.message
       }),

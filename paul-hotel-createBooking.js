@@ -12,7 +12,25 @@ const pool = new Pool({
   }
 });
 
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (VERY IMPORTANT for POST)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const data = JSON.parse(event.body);
 
@@ -35,10 +53,7 @@ module.exports.handler = async (event) => {
     if (roomCheck.rows.length === 0) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ message: 'Room does not exist' }),
       };
     }
@@ -59,10 +74,7 @@ module.exports.handler = async (event) => {
     if (overlapCheck.rows.length > 0) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ message: 'Room already booked for selected dates' }),
       };
     }
@@ -89,10 +101,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Booking created successfully',
         data: result.rows[0],
@@ -104,10 +113,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: error.message,
       }),

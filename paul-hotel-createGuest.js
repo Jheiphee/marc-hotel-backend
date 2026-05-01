@@ -12,7 +12,25 @@ const pool = new Pool({
   }
 });
 
+// 🔥 REUSABLE CORS HEADERS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // 🔥 HANDLE OPTIONS (important for POST)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const data = JSON.parse(event.body);
 
@@ -22,10 +40,7 @@ module.exports.handler = async (event) => {
     if (!profile_id || !guest_type) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'profile_id and guest_type are required'
         }),
@@ -39,10 +54,7 @@ module.exports.handler = async (event) => {
     if (!allowedTypes.includes(normalizedType)) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Invalid guest_type'
         }),
@@ -58,10 +70,7 @@ module.exports.handler = async (event) => {
     if (profileCheck.rows.length === 0) {
       return {
         statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           message: 'Profile does not exist'
         }),
@@ -88,10 +97,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Guest created successfully',
         data: result.rows[0]
@@ -103,10 +109,7 @@ module.exports.handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: err.message
       }),

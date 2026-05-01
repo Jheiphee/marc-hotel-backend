@@ -30,7 +30,9 @@ module.exports.handler = async (event) => {
         statusCode: 400,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
         },
         body: JSON.stringify({
           message: 'payment_id is required'
@@ -46,7 +48,9 @@ module.exports.handler = async (event) => {
         statusCode: 400,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
         },
         body: JSON.stringify({
           message: 'Invalid JSON body'
@@ -72,7 +76,9 @@ module.exports.handler = async (event) => {
         statusCode: 404,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
         },
         body: JSON.stringify({
           message: 'Payment not found'
@@ -113,7 +119,9 @@ module.exports.handler = async (event) => {
           statusCode: 400,
           headers: {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
           },
           body: JSON.stringify({
             message: 'Invalid status value'
@@ -157,7 +165,9 @@ module.exports.handler = async (event) => {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
       },
       body: JSON.stringify({
         message: 'Payment updated successfully',
@@ -172,7 +182,9 @@ module.exports.handler = async (event) => {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
       },
       body: JSON.stringify({
         message: err.message
