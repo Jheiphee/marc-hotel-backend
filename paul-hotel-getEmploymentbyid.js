@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// ✅ reusable DB connection
+// 🔥 reusable DB connection
 let pool;
 
 const getPool = () => {
@@ -19,10 +19,57 @@ const getPool = () => {
   return pool;
 };
 
+// 🔥 reusable CORS
+const corsHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
+
 module.exports.handler = async (event) => {
+
+  // ✅ HANDLE OPTIONS
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ""
+    };
+  }
+
   try {
     const db = getPool();
 
+    // 🔥 STEP 1: CHECK IF MAY ID (GET BY ID MODE)
+    const { employee_id } = event.pathParameters || {};
+
+    if (employee_id) {
+      const result = await db.query(
+        `SELECT * FROM employment_details WHERE employee_id = $1`,
+        [employee_id]
+      );
+
+      if (result.rows.length === 0) {
+        return {
+          statusCode: 404,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            message: "Employment not found"
+          })
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          data: result.rows[0] // 🔥 SINGLE OBJECT
+        })
+      };
+    }
+
+    // 🔥 STEP 2: SEARCH / FILTER MODE
     const params = event.queryStringParameters || {};
     const { keyword, job_title, position_level, status, shift } = params;
 
@@ -45,7 +92,7 @@ module.exports.handler = async (event) => {
       index++;
     }
 
-    // 🔍 SPECIFIC FILTERS (optional)
+    // 🔍 SPECIFIC FILTERS
     if (job_title) {
       conditions.push(`job_title ILIKE $${index}`);
       values.push(`%${job_title}%`);
@@ -75,10 +122,13 @@ module.exports.handler = async (event) => {
       SELECT 
         employee_id,
         profile_id,
+        hire_date,
         job_title,
         position_level,
+        emp_type,
         status,
-        shift
+        shift,
+        is_active
       FROM employment_details
     `;
 
@@ -86,32 +136,24 @@ module.exports.handler = async (event) => {
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
 
+    query += ` ORDER BY employee_id ASC`;
+
     const result = await db.query(query, values);
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
-        data: result.rows
+        data: result.rows // 🔥 ARRAY
       }),
     };
 
   } catch (error) {
-    console.error('SEARCH EMPLOYMENT ERROR:', error);
+    console.error('GET EMPLOYMENT ERROR:', error);
 
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         message: error.message
       }),
